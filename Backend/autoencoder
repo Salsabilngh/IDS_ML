@@ -1,0 +1,65 @@
+# train_ae_mlp.py
+import numpy as np, pandas as pd, joblib
+from sklearn.neural_network import MLPRegressor
+from sklearn.preprocessing import RobustScaler
+
+# === Chemins (adapte si besoin) ===
+TRAIN_CSV = r"C:\Users\salsa\Desktop\Dataset\UNSW_NB15_training-set (1).csv"
+TEST_CSV  = r"C:\Users\salsa\Desktop\Dataset\UNSW_NB15_testing-set (1).csv"
+OUT_PATH  = r"C:\Users\salsa\Desktop\PFE\IDS\IDS\ids_ae_mlp.joblib"
+
+NUM_COLS_AE = ["dpkts","sttl","smean"]   # mêmes colonnes dispo côté app.py
+
+print("Chargement UNSW...")
+df = pd.concat([pd.read_csv(TRAIN_CSV), pd.read_csv(TEST_CSV)], ignore_index=True)
+df.columns = [c.lower().strip() for c in df.columns]
+
+# Label binaire
+label_col = "label" if "label" in df.columns else ("attack_cat" if "attack_cat" in df.columns else None)
+if label_col is None:
+    raise ValueError("Colonne de label introuvable (label / attack_cat).")
+if label_col == "attack_cat":
+    df[label_col] = np.where(df[label_col].astype(str).str.lower().eq("normal"), 0, 1)
+else:
+    df[label_col] = pd.to_numeric(df[label_col], errors="coerce").fillna(0).astype(int)
+
+# smean = sbytes/spkts
+for c in ["sbytes","spkts","dpkts","sttl"]:
+    if c not in df.columns:
+        df[c] = 0
+df["smean"] = (pd.to_numeric(df["sbytes"], errors="coerce").fillna(0.0) /
+               (pd.to_numeric(df["spkts"], errors="coerce").fillna(0.0) + 1e-6))
+
+norm = df[df[label_col]==0].copy()
+Xn = norm[NUM_COLS_AE].apply(pd.to_numeric, errors="coerce").fillna(0.0).astype(float)
+
+# Scaler + "AE" MLP (reconstruction X->X)
+scaler = RobustScaler()
+Xn_s   = scaler.fit_transform(Xn)
+
+# Architecture compacte (tu peux ajuster hidden_layer_sizes)
+mlp = MLPRegressor(
+    hidden_layer_sizes=(8, 3, 8),   # goulot d’étranglement = 3
+    activation="relu",
+    solver="adam",
+    max_iter=200,
+    random_state=42,
+    verbose=False
+)
+print("Fit MLPRegressor (autoencoder-like)...")
+mlp.fit(Xn_s, Xn_s)   # target = Xn_s (reconstruction)
+
+# Reconstruction & seuil tau (≈2% plus grosses erreurs)
+Xhat = mlp.predict(Xn_s)
+mse  = np.mean((Xhat - Xn_s)**2, axis=1)
+tau  = float(np.percentile(mse, 98.0))
+
+joblib.dump({
+    "scaler": scaler,
+    "mlp": mlp,
+    "tau_mse": tau,
+    "num_cols_ae": NUM_COLS_AE
+}, OUT_PATH)
+
+print(f"✅ AE-MLP sauvegardé -> {OUT_PATH}")
+print(f"Seuil tau_mse ≈ {tau:.6f} (≈2% anormaux)")

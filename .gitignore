@@ -1,0 +1,63 @@
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv/
+venv/
+.env
+.ipynb_checkpoints/
+
+# Logs & data lourdes
+*.log
+mlruns/
+uploads/
+data/
+datasets/
+*.pcap
+*.pcapng
+*.npy
+*.npz
+*.joblib
+*.h5
+*.ckpt
+*.model
+*.bin
+
+# Build / dist
+dist/
+build/
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Node / Frontend
+node_modules/
+.next/
+out/
+coverage/
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# --- LOCAL SPECIFIQUE (backend/frontend/artefacts) ---
+Backend/venv*/
+Frontend/node_modules/
+mlruns/
+uploads/
+data/
+datasets/
+
+# Fichiers lourds/artefacts ML
+*.pcap
+*.pcapng
+*.npy
+*.npz
+*.joblib
+*.h5
+*.ckpt
+*.bin
+*.model

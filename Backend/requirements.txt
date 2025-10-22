@@ -1,0 +1,11 @@
+flask
+flask-socketio
+flask-cors
+numpy
+pandas
+scikit-learn
+xgboost
+joblib
+mlflow==2.16.0
+cloudpickle
+# eventlet==0.36.1   # <-- seulement si tu veux le mode async eventlet pour Socket.IO

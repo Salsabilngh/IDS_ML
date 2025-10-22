@@ -1,0 +1,15 @@
+=== AE-MLP IDS Training Summary ===
+Date: 2025-10-22T18:15:51
+Train CSV: C:\Users\salsa\Desktop\Dataset\UNSW_NB15_training-set (1).csv
+Test  CSV: C:\Users\salsa\Desktop\Dataset\UNSW_NB15_testing-set (1).csv
+
+Features: ['dpkts', 'sttl', 'smean']
+n_total: 257673 | n_normals_train: 93000 | n_attacks_total: 164673
+
+MLP hidden=(8, 3, 8), max_iter=200, activation=relu, solver=adam
+tau_mse (98th pct on normal) = 0.006400
+ROC-AUC(all) = 0.928699
+PR-AUC(all) = 0.959889
+alert_rate@tau(all) = 0.472785
+train_mse_mean = 0.001249
+train_mse_p95 = 0.005821

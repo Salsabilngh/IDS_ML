@@ -1,0 +1,20 @@
+=== XGB IDS Training Summary ===
+Date: 2025-10-22T17:01:11
+Train CSV: C:\Users\salsa\Desktop\Dataset\UNSW_NB15_training-set (1).csv
+Test  CSV: C:\Users\salsa\Desktop\Dataset\UNSW_NB15_testing-set (1).csv
+n_samples_total: 257673 | n_features: 8
+num_cols: ['dpkts', 'sttl', 'smean', 'ct_srv_src', 'total_syn_count', 'syn_count_dst', 'malformed_ratio']
+cat_cols: ['proto']
+scale_pos_weight: 1.0000
+
+RandomizedSearch best: {'clf__colsample_bytree': np.float64(0.9160702162124823), 'clf__learning_rate': np.float64(0.1311919949562023), 'clf__max_depth': 9, 'clf__n_estimators': 240, 'clf__subsample': np.float64(0.9659838702175123)}
+GridSearch best:       {'clf__colsample_bytree': 0.8160702162124823, 'clf__learning_rate': 0.10495359596496184, 'clf__max_depth': 9, 'clf__n_estimators': 290, 'clf__subsample': 0.9659838702175123}
+
+VAL metrics:
+  ACC=0.9326
+  PREC=0.9446
+  RECALL=0.9502
+  F1=0.9474
+  ROC_AUC=0.9868
+  PR_AUC=0.9927
+Best threshold (F1): 0.4683

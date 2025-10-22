@@ -1,0 +1,12 @@
+=== IsolationForest IDS Training Summary ===
+Date: 2025-10-22T18:21:24
+Train CSV: C:\Users\salsa\Desktop\Dataset\UNSW_NB15_training-set (1).csv
+Test  CSV: C:\Users\salsa\Desktop\Dataset\UNSW_NB15_testing-set (1).csv
+
+Features: ['dpkts', 'sttl', 'smean']
+n_total: 257673 | n_normals_train: 93000 | n_attacks_total: 164673
+
+IForest: n_estimators=300, contamination=0.02, random_state=42
+tau (98th pct on normal) = 0.680857
+train_scores_mean = 0.448643
+train_scores_p95 = 0.612130
