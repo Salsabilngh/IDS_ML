@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+venv*/
+.venv/
+
+# Logs & datasets & artefacts ML
+mlruns/
+uploads/
+data/
+datasets/
+IDS/IDS/*.joblib
+IDS/IDS/*.pkl
+IDS/IDS/*.npy
+IDS/IDS/*.npz
+IDS/IDS/*.h5
+IDS/IDS/*.bin
+*.pcap
+*.pcapng
+
+# Node/IDE
+node_modules/
+.vscode/
+.idea/

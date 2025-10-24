@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  ids-api:
+    image: registry.gitlab.com/salamal1/ids_ml/ids-api:latest
+    container_name: ids-api
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./Backend/IDS:/app/IDS:ro
+      - ./Backend/mlruns:/app/mlruns
+      - ./Backend/uploads:/app/uploads
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    restart: unless-stopped
+
+  frontend:
+    image: registry.gitlab.com/salamal1/ids_ml/frontend:latest
+    container_name: ids-frontend
+    depends_on:
+      - ids-api
+    ports:
+      - "3000:80"
+    restart: unless-stopped
