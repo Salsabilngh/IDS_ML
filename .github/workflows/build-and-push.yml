@@ -30,10 +30,10 @@ jobs:
           file: ./Backend/Dockerfile
           push: true
           tags: |
-            ghcr.io/salsabilngh/ids_ml/ids-api:latest
-            ghcr.io/salsabilngh/ids_ml/ids-api:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/salsabilngh/ids_ml/cache:backend
-          cache-to: type=registry,ref=ghcr.io/salsabilngh/ids_ml/cache:backend,mode=max
+            ghcr.io/salsabilngh/ids/ids-api:latest
+            ghcr.io/salsabilngh/ids/ids-api:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/salsabilngh/ids/cache:backend
+          cache-to: type=registry,ref=ghcr.io/salsabilngh/ids/cache:backend,mode=max
 
   frontend:
     name: Build Frontend
@@ -60,7 +60,7 @@ jobs:
           file: ./Frontend/Dockerfile
           push: true
           tags: |
-            ghcr.io/salsabilngh/ids_ml/frontend:latest
-            ghcr.io/salsabilngh/ids_ml/frontend:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/salsabilngh/ids_ml/cache:frontend
-          cache-to: type=registry,ref=ghcr.io/salsabilngh/ids_ml/cache:frontend,mode=max
+            ghcr.io/salsabilngh/ids/frontend:latest
+            ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
+          cache-from: type=registry,ref=ghcr.io/salsabilngh/ids/cache:frontend
+          cache-to: type=registry,ref=ghcr.io/salsabilngh/ids/cache:frontend,mode=max
