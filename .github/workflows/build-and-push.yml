@@ -52,6 +52,8 @@ jobs:
         working-directory: Frontend
         run: |
           npm ci || npm install
+          # ceinture + bretelles : installe web-vitals même si absent du lock
+          npm install web-vitals --no-audit --no-fund || true
           npm run build
       - name: Build & Push frontend
         uses: docker/build-push-action@v5
