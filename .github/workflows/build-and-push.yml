@@ -1,4 +1,4 @@
-name: Build & Push Docker Images
+name: Build, Test & Push Docker Images
 
 on:
   push:
@@ -8,6 +8,10 @@ on:
 permissions:
   contents: read
   packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NS: ghcr.io/salsabilngh/ids
 
 jobs:
   backend:
@@ -19,7 +23,7 @@ jobs:
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -33,8 +37,8 @@ jobs:
           file: ./Backend/Dockerfile
           push: true
           tags: |
-            ghcr.io/salsabilngh/ids/ids-api:latest
-            ghcr.io/salsabilngh/ids/ids-api:${{ github.sha }}
+            ${{ env.IMAGE_NS }}/ids-api:latest
+            ${{ env.IMAGE_NS }}/ids-api:${{ github.sha }}
 
   frontend:
     name: Build Frontend
@@ -52,26 +56,20 @@ jobs:
         env:
           CI: "false"   # n’arrête pas le build CRA sur warnings
         run: |
-          # Ne PAS supprimer le lockfile si présent (évite les upgrades sauvages)
-          # Si pas de lockfile, on fait une install souple
           if [ -f package-lock.json ]; then
             npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
           else
             npm install --legacy-peer-deps --no-audit --no-fund
           fi
-          # Corrige le couple versions attendu par webpack/react-scripts
           npm install -D ajv@6 ajv-keywords@3 schema-utils@3 --no-audit --no-fund
-          # S’assure que ces 2 packages existent
           npm install react-scripts@5 web-vitals --save --legacy-peer-deps --no-audit --no-fund
-          # (filet de sécurité) s’assure que le script build existe
           npm pkg set scripts.build="react-scripts build"
-          # Build
           npm run build
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
         with:
-          registry: ghcr.io
+          registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -85,8 +83,85 @@ jobs:
           file: ./Frontend/Dockerfile
           push: true
           tags: |
-            ghcr.io/salsabilngh/ids/frontend:latest
-            ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
+            ${{ env.IMAGE_NS }}/frontend:latest
+            ${{ env.IMAGE_NS }}/frontend:${{ github.sha }}
 
+  smoke-tests:
+    name: Smoke Tests (compose)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
 
+      - name: Compose file for tests
+        run: |
+          cat > docker-compose.ci.yml <<'YAML'
+          services:
+            ids-api:
+              image: ${{ env.IMAGE_NS }}/ids-api:${{ github.sha }}
+              ports: ["5000:5000"]
+              environment:
+                MLFLOW_TRACKING_URI: "file:./mlruns"
+                TSHARK_EXE: "/usr/bin/tshark"
+                CAPTURE_IFACE: "eth0"
+              healthcheck:
+                test: ["CMD", "python", "-c", "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:5000/healthz').getcode()==200 else 1)"]
+                interval: 10s
+                timeout: 5s
+                retries: 8
+            frontend:
+              image: ${{ env.IMAGE_NS }}/frontend:${{ github.sha }}
+              ports: ["3000:80"]
+              depends_on:
+                - ids-api
+          YAML
+
+      - name: Log in to GHCR (pull)
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start stack
+        run: docker compose -f docker-compose.ci.yml up -d
+
+      - name: Wait for backend healthy
+        run: |
+          for i in $(seq 1 40); do
+            if curl -fsS http://localhost:5000/healthz >/dev/null; then
+              echo "API OK"; exit 0
+            fi
+            sleep 2
+          done
+          echo "API not healthy"
+          docker compose -f docker-compose.ci.yml logs
+          exit 1
+
+      - name: Check frontend is serving HTML
+        run: |
+          curl -fsS http://localhost:3000 | grep -E "Intrusion Detection System|Cyberwatch|React App" >/dev/null
+
+      - name: Teardown
+        if: always()
+        run: docker compose -f docker-compose.ci.yml down -v
+
+  scan-images:
+    name: Security Scan (Trivy)
+    needs: [backend, frontend]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Scan backend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NS }}/ids-api:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
+
+      - name: Scan frontend
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_NS }}/frontend:${{ github.sha }}
+          vuln-type: os,library
+          severity: CRITICAL,HIGH
 
