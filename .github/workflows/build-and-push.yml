@@ -32,8 +32,6 @@ jobs:
           tags: |
             ghcr.io/salsabilngh/ids/ids-api:latest
             ghcr.io/salsabilngh/ids/ids-api:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/salsabilngh/ids/cache:backend
-          cache-to: type=registry,ref=ghcr.io/salsabilngh/ids/cache:backend,mode=max
 
   frontend:
     name: Build Frontend
@@ -101,5 +99,3 @@ jobs:
           tags: |
             ghcr.io/salsabilngh/ids/frontend:latest
             ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
-          cache-from: type=registry,ref=ghcr.io/salsabilngh/ids/cache:frontend
-          cache-to: type=registry,ref=ghcr.io/salsabilngh/ids/cache:frontend,mode=max
