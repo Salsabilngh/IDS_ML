@@ -74,11 +74,11 @@ jobs:
       # IMPORTANT : pas de npm ci
       - name: Install deps & build
         working-directory: Frontend
-        run: |
-          npm cache clean --force
-          rm -f package-lock.json
-          npm install --no-audit --no-fund
-          npm run build
+       run: |
+            rm -rf node_modules package-lock.json
+           npm install web-vitals --save
+           npm install --legacy-peer-deps --no-audit --no-fund
+           npm run build
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -99,3 +99,4 @@ jobs:
           tags: |
             ghcr.io/salsabilngh/ids/frontend:latest
             ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
+            
