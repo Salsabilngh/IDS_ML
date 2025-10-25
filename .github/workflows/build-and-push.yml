@@ -47,19 +47,29 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install deps & build (add react-scripts + web-vitals)
+      - name: Install deps & build (pin ajv v6 / keywords v3 + react-scripts + web-vitals)
         working-directory: Frontend
         env:
-          CI: "false"   # empêche CRA d'arrêter sur les warnings
+          CI: "false"   # n’arrête pas le build CRA sur warnings
         run: |
-          rm -rf node_modules package-lock.json
-          # installe les dépendances normales
-          npm install --legacy-peer-deps --no-audit --no-fund
-          # installe les packages manquants
+          # Ne PAS supprimer le lockfile si présent (évite les upgrades sauvages)
+          # Si pas de lockfile, on fait une install souple
+          if [ -f package-lock.json ]; then
+            npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
+          else
+            npm install --legacy-peer-deps --no-audit --no-fund
+          fi
+
+          # Corrige le couple versions attendu par webpack/react-scripts
+          npm install -D ajv@6 ajv-keywords@3 schema-utils@3 --no-audit --no-fund
+
+          # S’assure que ces 2 packages existent
           npm install react-scripts@5 web-vitals --save --legacy-peer-deps --no-audit --no-fund
-          # s’assure que le script build est bien défini
+
+          # (filet de sécurité) s’assure que le script build existe
           npm pkg set scripts.build="react-scripts build"
-          # build du frontend
+
+          # Build
           npm run build
 
       - name: Log in to GHCR
@@ -81,6 +91,5 @@ jobs:
           tags: |
             ghcr.io/salsabilngh/ids/frontend:latest
             ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
-
 
 
