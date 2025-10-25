@@ -45,7 +45,7 @@ jobs:
         with:
           node-version: 18
 
-      # PATCH CI: plus aucun import 'web-vitals' au moment du build
+      # Patch web-vitals dans l'arbre CI (ceinture + bretelles)
       - name: Patch web-vitals imports (no-op)
         working-directory: Frontend
         run: |
@@ -57,11 +57,9 @@ jobs:
           export default function reportWebVitals() {}
           EOF
 
-          # remplace toutes les occurrences 'web-vitals' -> './noop-web-vitals'
           find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -print0 \
           | xargs -0 sed -i -E "s#(['\"])web-vitals\\1#\\1./noop-web-vitals\\1#g"
 
-          # index.js minimal sans web-vitals (si le tiens en contient)
           if [ -f src/index.js ]; then
             cp -n src/index.js src/index.js.bak || true
             cat > src/index.js <<'EOF'
@@ -73,10 +71,9 @@ jobs:
             EOF
           fi
 
-          # vérif: ne doit plus rien trouver
           ! grep -Rni "web-vitals" src || (echo "still contains web-vitals" && exit 1)
 
-      # très important: PAS de "npm ci"
+      # IMPORTANT : pas de npm ci
       - name: Install deps & build
         working-directory: Frontend
         run: |
