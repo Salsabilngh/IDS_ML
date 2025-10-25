@@ -29,8 +29,8 @@ jobs:
       - name: Build & Push backend
         uses: docker/build-push-action@v5
         with:
-          context: ./Backend
-          file: ./Backend/Dockerfile
+          context: ./Frontend
+          file: ./Frontend/Dockerfile
           push: true
           tags: |
             ghcr.io/salsabilngh/ids/ids-api:latest
@@ -85,7 +85,7 @@ jobs:
       - name: Build & Push frontend
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: ./Frontend
           file: ./Frontend/Dockerfile
           push: true
           tags: |
