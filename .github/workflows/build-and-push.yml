@@ -111,5 +111,108 @@ jobs:
           vuln-type: os,library
           severity: CRITICAL,HIGH
 
+  tests:
+    name: Run Unit Tests + Coverage
+    needs: [backend, frontend]   # attend les builds (optionnel)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- Backend (Python) ----------
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+
+      - name: Install backend deps
+        working-directory: Backend
+        run: |
+          pip install -r requirements.txt || true
+          pip install pytest coverage
+
+      - name: Run backend tests (coverage)
+        working-directory: Backend
+        run: |
+          mkdir -p coverage
+          coverage run -m pytest
+          coverage xml -o coverage.xml
+          ls -la
+
+      # ---------- Frontend (React) ----------
+      - name: Use Node 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
+
+      - name: Install & test frontend (jest + coverage)
+        working-directory: Frontend
+        env:
+          CI: "true"
+        run: |
+          npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
+          # si CRA/Jest est en place, ceci génère coverage/lcov.info
+          npm test -- --watchAll=false --coverage
+
+      # ---------- Export coverage pour Sonar ----------
+      - name: Upload backend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-coverage
+          path: Backend/coverage.xml
+
+      - name: Upload frontend coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage/lcov.info
+
+  sonarcloud:
+    name: SonarCloud Analysis
+    needs: [tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # important pour l'analyse de branches/PR
+
+      # Récupère les rapports de couverture produits par "tests"
+      - name: Download backend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: backend-coverage
+          path: Backend
+
+      - name: Download frontend coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-coverage
+          path: Frontend/coverage
+
+      # Crée à la volée la config Sonar (simple et efficace)
+      - name: Create sonar-project.properties
+        run: |
+          cat > sonar-project.properties <<'PROP'
+          sonar.organization=${{ secrets.SONAR_ORG }}
+          sonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
+          sonar.projectName=ids
+          sonar.sourceEncoding=UTF-8
+
+          sonar.sources=Backend,Frontend
+          sonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/__pycache__/**,**/migrations/**
+
+          # Coverage
+          sonar.python.coverage.reportPaths=Backend/coverage.xml
+          sonar.javascript.lcov.reportPaths=Frontend/coverage/lcov.info
+          PROP
+          echo "----- sonar-project.properties -----"
+          cat sonar-project.properties
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
 
 
