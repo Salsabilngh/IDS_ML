@@ -47,12 +47,19 @@ jobs:
         with:
           node-version: 18
 
-      - name: Install deps & build (add web-vitals)
+      - name: Install deps & build (add react-scripts + web-vitals)
         working-directory: Frontend
+        env:
+          CI: "false"   # empêche CRA d'arrêter sur les warnings
         run: |
           rm -rf node_modules package-lock.json
-          npm install web-vitals --save
+          # installe les dépendances normales
           npm install --legacy-peer-deps --no-audit --no-fund
+          # installe les packages manquants
+          npm install react-scripts@5 web-vitals --save --legacy-peer-deps --no-audit --no-fund
+          # s’assure que le script build est bien défini
+          npm pkg set scripts.build="react-scripts build"
+          # build du frontend
           npm run build
 
       - name: Log in to GHCR
@@ -74,5 +81,6 @@ jobs:
           tags: |
             ghcr.io/salsabilngh/ids/frontend:latest
             ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
+
 
 
