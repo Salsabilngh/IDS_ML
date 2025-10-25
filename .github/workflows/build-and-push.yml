@@ -48,25 +48,24 @@ jobs:
         working-directory: Frontend
         run: |
           mkdir -p src
-          cat > src/noop-web-vitals.js <<'EOF'
-          export const onCLS = () => {};
-          export const onFID = () => {};
-          export const onLCP = () => {};
-          export default function reportWebVitals() {}
-          EOF
+          cat <<'EOF' > src/noop-web-vitals.js
+export const onCLS = () => {};
+export const onFID = () => {};
+export const onLCP = () => {};
+export default function reportWebVitals() {}
+EOF
 
-          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -print0 \
-          | xargs -0 sed -i -E "s#(['\"])web-vitals\\1#\\1./noop-web-vitals\\1#g"
+          find src -type f \( -name "*.js" -o -name "*.jsx" -o -name "*.ts" -o -name "*.tsx" \) -print0 | xargs -0 sed -i -E "s#(['\"])web-vitals\\1#\\1./noop-web-vitals\\1#g"
 
           if [ -f src/index.js ]; then
             cp -n src/index.js src/index.js.bak || true
-            cat > src/index.js <<'EOF'
-            import React from 'react';
-            import ReactDOM from 'react-dom/client';
-            import App from './App';
-            const root = ReactDOM.createRoot(document.getElementById('root'));
-            root.render(<App />);
-            EOF
+            cat <<'EOF' > src/index.js
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+EOF
           fi
 
           ! grep -Rni "web-vitals" src || (echo "still contains web-vitals" && exit 1)
@@ -99,4 +98,3 @@ jobs:
             ghcr.io/salsabilngh/ids/frontend:latest
             ghcr.io/salsabilngh/ids/frontend:${{ github.sha }}
 
-            
