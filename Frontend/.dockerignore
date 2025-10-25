@@ -1,0 +1,9 @@
+node_modules
+build
+# ne PAS exclure ces fichiers/dirs :
+!nginx.conf
+!Dockerfile
+!src/**
+!public/**
+!package.json
+!package-lock.json
