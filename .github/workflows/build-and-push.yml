@@ -1,5 +1,4 @@
-
-name: Build & Push Docker Images
+name: CI/CD Pipeline - IDS Project
 
 on:
   push:
@@ -15,6 +14,7 @@ env:
   IMAGE_NS: ghcr.io/salsabilngh/ids
 
 jobs:
+  # ---------------- BUILD BACKEND ----------------
   backend:
     name: Build Backend
     runs-on: ubuntu-latest
@@ -41,6 +41,7 @@ jobs:
             ${{ env.IMAGE_NS }}/ids-api:latest
             ${{ env.IMAGE_NS }}/ids-api:${{ github.sha }}
 
+  # ---------------- BUILD FRONTEND ----------------
   frontend:
     name: Build Frontend
     runs-on: ubuntu-latest
@@ -51,20 +52,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
+          cache: 'npm'
+          cache-dependency-path: Frontend/package-lock.json
 
-      - name: Install deps & build (pin ajv v6 / keywords v3 + react-scripts + web-vitals)
+      - name: Install deps & build
         working-directory: Frontend
         env:
           CI: "false"
         run: |
-          if [ -f package-lock.json ]; then
-            npm ci --no-audit --no-fund || npm install --legacy-peer-deps --no-audit --no-fund
-          else
-            npm install --legacy-peer-deps --no-audit --no-fund
-          fi
-          npm install -D ajv@6 ajv-keywords@3 schema-utils@3 --no-audit --no-fund
-          npm install react-scripts@5 web-vitals --save --legacy-peer-deps --no-audit --no-fund
-          npm pkg set scripts.build="react-scripts build"
+          npm install --legacy-peer-deps --no-audit --no-fund
           npm run build
 
       - name: Log in to GHCR
@@ -87,22 +83,74 @@ jobs:
             ${{ env.IMAGE_NS }}/frontend:latest
             ${{ env.IMAGE_NS }}/frontend:${{ github.sha }}
 
-  scan-images:
-    name: Security Scan (Trivy)
+  # ---------------- TESTS ----------------
+  tests:
+    name: Run Unit Tests
     needs: [backend, frontend]
     runs-on: ubuntu-latest
     steps:
-      - name: Scan backend
-        uses: aquasecurity/trivy-action@master
-        with:
-          image-ref: ${{ env.IMAGE_NS }}/ids-api:${{ github.sha }}
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
+      - uses: actions/checkout@v4
 
-      - name: Scan frontend
-        uses: aquasecurity/trivy-action@master
+      # Python tests
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          image-ref: ${{ env.IMAGE_NS }}/frontend:${{ github.sha }}
-          vuln-type: os,library
-          severity: CRITICAL,HIGH
+          python-version: "3.10"
+      - name: Install backend deps
+        working-directory: Backend
+        run: |
+          pip install -r requirements.txt
+          pip install pytest coverage
+      - name: Run backend tests
+        working-directory: Backend
+        run: |
+          coverage run -m pytest
+          coverage xml -o coverage.xml
+
+      # React tests
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+      - name: Run frontend tests
+        working-directory: Frontend
+        env:
+          CI: "true"
+        run: |
+          npm ci --no-audit --no-fund || npm install --legacy-peer-deps
+          npm test -- --watchAll=false --coverage
+
+  # ---------------- SONARCLOUD ANALYSIS ----------------
+  sonarcloud:
+    name: SonarCloud Analysis
+    needs: [tests]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # pour analyse complète
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@v2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  # ---------------- DEPLOY ----------------
+  deploy:
+    name: Deploy to Server
+    needs: [sonarcloud]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy with Docker Compose
+        env:
+          SSH_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          echo "$SSH_KEY" > key.pem
+          chmod 600 key.pem
+          ssh -o StrictHostKeyChecking=no -i key.pem user@your-server-ip << 'EOF'
+            cd /path/to/ids
+            docker compose pull
+            docker compose up -d
+          EOF
+
 
