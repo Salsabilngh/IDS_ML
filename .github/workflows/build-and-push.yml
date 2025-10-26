@@ -174,7 +174,7 @@ jobs:
           name: frontend-coverage
           path: Frontend/coverage/lcov.info
 
-  sonarcloud:
+    sonarcloud:
     name: SonarCloud Analysis
     needs: [tests]
     runs-on: ubuntu-latest
@@ -196,24 +196,17 @@ jobs:
           name: frontend-coverage
           path: Frontend/coverage
 
-      - name: Create sonar-project.properties
+      # Laisse le sonar-project.properties du repo tel quel
+      - name: Show sonar-project.properties (debug)
         run: |
-          cat > sonar-project.properties <<'PROP'
-          sonar.organization=${{ secrets.SONAR_ORG }}
-          sonar.projectKey=${{ secrets.SONAR_PROJECT_KEY }}
-          sonar.projectName=ids
-          sonar.sourceEncoding=UTF-8
-          sonar.sources=Backend,Frontend
-          sonar.exclusions=**/node_modules/**,**/build/**,**/dist/**,**/__pycache__/**,**/migrations/**
-          sonar.python.coverage.reportPaths=Backend/coverage.xml
-          sonar.javascript.lcov.reportPaths=Frontend/coverage/lcov.info
-          PROP
           echo "----- sonar-project.properties -----"
-          cat sonar-project.properties
+          sed 's/sonar\.projectKey=.*/sonar.projectKey=<masked>/' sonar-project.properties \
+          | sed 's/sonar\.organization=.*/sonar.organization=<masked>/'
 
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
 
 
