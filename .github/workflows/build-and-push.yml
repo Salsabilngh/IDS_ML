@@ -46,7 +46,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 18
-      - name: Install deps & build (pin ajv v6 / keywords v3 + react-scripts + web-vitals)
+      - name: Install deps & build
         working-directory: Frontend
         env:
           CI: "false"
@@ -59,7 +59,6 @@ jobs:
           npm install -D ajv@6 ajv-keywords@3 schema-utils@3 --no-audit --no-fund
           npm install react-scripts@5 web-vitals --save --legacy-peer-deps --no-audit --no-fund
           npm pkg set scripts.build="react-scripts build"
-          npx react-scripts --version || true
           npm run build
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -112,22 +111,17 @@ jobs:
         run: |
           pip install -r requirements.txt || true
           pip install pytest coverage
-      - name: Run backend tests (coverage) - tolerant si 0 test
+      - name: Run backend tests (coverage)
         working-directory: Backend
         run: |
-          set -e
           mkdir -p coverage
           coverage run -m pytest || true
           coverage xml -o coverage.xml || echo '<coverage version="1.0"/>' > coverage.xml
-          [ -f coverage.xml ] || echo '<coverage version="1.0"/>' > coverage.xml
-          ls -l coverage.xml
       - name: Use Node 18
         uses: actions/setup-node@v4
         with:
           node-version: 18
-          cache: 'npm'
-          cache-dependency-path: Frontend/package-lock.json
-      - name: Install & test frontend (jest + coverage)
+      - name: Install & test frontend
         working-directory: Frontend
         env:
           CI: "true"
@@ -138,16 +132,13 @@ jobs:
           if [ ! -f coverage/lcov.info ]; then
             echo -e "TN:\nSF:placeholder.js\nFNF:0\nFNH:0\nDA:1,0\nLF:1\nLH:0\nend_of_record" > coverage/lcov.info
           fi
-      - name: Upload backend coverage
+      - name: Upload coverage files
         uses: actions/upload-artifact@v4
         with:
-          name: backend-coverage
-          path: Backend/coverage.xml
-      - name: Upload frontend coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-coverage
-          path: Frontend/coverage/lcov.info
+          name: coverage
+          path: |
+            Backend/coverage.xml
+            Frontend/coverage/lcov.info
 
   sonarcloud:
     name: SonarCloud Analysis
@@ -157,16 +148,10 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Download backend coverage
+      - name: Download coverage
         uses: actions/download-artifact@v4
         with:
-          name: backend-coverage
-          path: Backend
-      - name: Download frontend coverage
-        uses: actions/download-artifact@v4
-        with:
-          name: frontend-coverage
-          path: Frontend/coverage
+          name: coverage
       - name: Generate sonar-project.properties
         run: |
           cat > sonar-project.properties <<'PROP'
@@ -179,75 +164,44 @@ jobs:
           sonar.python.coverage.reportPaths=Backend/coverage.xml
           sonar.javascript.lcov.reportPaths=Frontend/coverage/lcov.info
           PROP
-          echo "----- sonar-project.properties -----"
-          sed 's/sonar\.projectKey=.*/sonar.projectKey=<masked>/' sonar-project.properties \
-          | sed 's/sonar\.organization=.*/sonar.organization=<masked>/'
       - name: SonarCloud Scan
         uses: SonarSource/sonarcloud-github-action@v2
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
 
   deploy:
-    name: Deploy to Server (SSH + Docker Compose)
+    name: Deploy (Local Runner)
     needs: [scan-images, tests, sonarcloud]
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
 
-      # Génère un docker-compose pour la prod avec le SHA courant
-      - name: Create docker-compose.deploy.yml
+      - name: Create docker-compose for deployment
         run: |
-          cat > docker-compose.deploy.yml <<'YAML'
+          mkdir -p ~/ids
+          cat > ~/ids/docker-compose.deploy.yml <<'YAML'
           services:
             ids-api:
               image: ${IMAGE_NS}/ids-api:${IMAGE_TAG}
               restart: unless-stopped
               ports: ["5000:5000"]
-              environment:
-                MODEL_PATH: "/app/models/ids_best_pipeline.joblib"
-                FEATURE_LIST_PATH: "/app/models/feature_list.json"
-                UPLOAD_DIR: "/app/uploads"
-                MLFLOW_TRACKING_URI: "file:./mlruns"
-                TSHARK_EXE: "/usr/bin/tshark"
-                CAPTURE_IFACE: "eth0"
             frontend:
               image: ${IMAGE_NS}/frontend:${IMAGE_TAG}
               restart: unless-stopped
-              ports: ["80:80"]   # adapte si besoin (ex: "3000:80")
+              ports: ["3000:80"]
               depends_on: ["ids-api"]
           YAML
-          echo "IMAGE_NS=${{ env.IMAGE_NS }}" > .env
-          echo "IMAGE_TAG=${{ github.sha }}" >> .env
-          echo "Generated compose + .env:"
-          cat docker-compose.deploy.yml
-          echo "---"; cat .env
+          echo "IMAGE_NS=${{ env.IMAGE_NS }}" > ~/ids/.env
+          echo "IMAGE_TAG=${{ github.sha }}" >> ~/ids/.env
 
-      # Prépare la clé SSH
-      - name: Prepare SSH key
+      - name: Pull & Up containers
         run: |
-          echo "${{ secrets.SSH_PRIVATE_KEY }}" > key.pem
-          chmod 600 key.pem
+          cd ~/ids
+          docker login ${{ env.REGISTRY }} -u '${{ github.actor }}' -p '${{ secrets.GITHUB_TOKEN }}'
+          IMAGE_NS='${{ env.IMAGE_NS }}' IMAGE_TAG='${{ github.sha }}' docker compose -f docker-compose.deploy.yml --env-file .env pull
+          IMAGE_NS='${{ env.IMAGE_NS }}' IMAGE_TAG='${{ github.sha }}' docker compose -f docker-compose.deploy.yml --env-file .env up -d
+          docker ps
 
-      # Crée (si besoin) le dossier de déploiement sur le serveur
-      - name: Create remote deploy dir
-        run: |
-          ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "mkdir -p ${{ secrets.DEPLOY_PATH }}"
-
-      # Copie compose + .env
-      - name: Upload compose to server
-        run: |
-          scp -i key.pem -o StrictHostKeyChecking=no docker-compose.deploy.yml .env ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:${{ secrets.DEPLOY_PATH }}/
-
-      # Pull & restart sans downtime
-      - name: Pull & Up
-        run: |
-          ssh -i key.pem -o StrictHostKeyChecking=no ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} "
-            cd ${{ secrets.DEPLOY_PATH }} && \
-            docker login ${{ env.REGISTRY }} -u '${{ github.actor }}' -p '${{ secrets.GITHUB_TOKEN }}' && \
-            IMAGE_NS='${{ env.IMAGE_NS }}' IMAGE_TAG='${{ github.sha }}' docker compose -f docker-compose.deploy.yml --env-file .env pull && \
-            IMAGE_NS='${{ env.IMAGE_NS }}' IMAGE_TAG='${{ github.sha }}' docker compose -f docker-compose.deploy.yml --env-file .env up -d && \
-            docker image prune -f
-          "
 
 
 
