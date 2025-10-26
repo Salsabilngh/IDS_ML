@@ -770,3 +770,4 @@ if __name__ == '__main__':
     log("Starting Flask-SocketIO Server on http://0.0.0.0:5000")
     # Important: pas de double init. socketio.run prend app déjà initialisée.
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
+# ci: trigger rebuild Sun Oct 26 23:04:03 WAT 2025
