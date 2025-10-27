@@ -771,3 +771,4 @@ if __name__ == '__main__':
     # Important: pas de double init. socketio.run prend app déjà initialisée.
     socketio.run(app, host='0.0.0.0', port=5000, debug=False)
 # ci: trigger rebuild Sun Oct 26 23:04:03 WAT 2025
+# ci: trigger rebuild Mon Oct 27 01:12:33 WAT 2025
