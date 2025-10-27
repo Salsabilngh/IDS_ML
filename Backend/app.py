@@ -86,12 +86,12 @@ CORS(app, resources={r"/*": {"origins": "*"}})
 socketio.init_app(app)
 
 # ============== CONFIG ===============================
-MODEL_PATH        = r"C:\Users\salsa\Desktop\PFE\IDS\IDS\ids_best_pipeline.joblib"
-FEATURE_LIST_PATH = r"C:\Users\salsa\Desktop\PFE\IDS\IDS\feature_list.json"
-TEST_DATA_PATH    = r"C:\Users\salsa\Desktop\PFE\IDS\IDS\X_test_unscaled.npy"
+MODEL_PATH        = r"/app/IDS/IDS/ids_best_pipeline.joblib"
+FEATURE_LIST_PATH = r"/app/IDS/IDS/feature_list.json"
+TEST_DATA_PATH    = r"/app/IDS/IDS/X_test_unscaled.npy"
 
-IFOREST_PATH     = r"C:\Users\salsa\Desktop\PFE\IDS\IDS\ids_iforest.joblib"
-AE_PATH          = r"C:\Users\salsa\Desktop\PFE\IDS\IDS\ids_ae_mlp.joblib"
+IFOREST_PATH     = r"/app/IDS/IDS/ids_iforest.joblib"
+AE_PATH          = r"/app/IDS/IDS/ids_ae_mlp.joblib"
 
 SLEEP_TIME        = 2
 MAX_SIM_SAMPLES   = 5000
@@ -99,9 +99,9 @@ MAX_SIM_SAMPLES   = 5000
 TSHARK_EXE = (
     os.environ.get("TSHARK_EXE")
     or shutil.which("tshark")
-    or r"C:\Users\salsa\Desktop\Wireshark\tshark.exe"
+    
 )
-UPLOAD_DIR  = r"C:\Users\salsa\Desktop\PFE\uploads"
+UPLOAD_DIR  = r"/app/uploads"
 ALLOWED_EXT = {"pcap", "pcapng"}
 PROTO_MAP   = {6: "tcp", 17: "udp", 1: "icmp"}
 TSHARK_TIMEOUT_SEC = 120
